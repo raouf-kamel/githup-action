@@ -21,7 +21,7 @@ class MainActivity : ComponentActivity() {
             GithupactionTheme {
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
                     Greeting(
-                        name = "Android v1.2.3-test to 1.3.3",
+                        name = "Android v1.2.3-test to 231",
                         modifier = Modifier.padding(innerPadding)
                     )
                 }
