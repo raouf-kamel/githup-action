@@ -15,19 +15,33 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Get Version Name
         id: version
         shell: bash
         run: |
-          # قراءة major/minor من gradle.properties
-          VERSION_MAJOR=$(grep VERSION_MAJOR gradle.properties | cut -d'=' -f2 | xargs)
-          VERSION_MINOR=$(grep VERSION_MINOR gradle.properties | cut -d'=' -f2 | xargs)
+          set -euo pipefail
+
+          # اقرأ VERSION_MAJOR و VERSION_MINOR من gradle.properties
+          VERSION_MAJOR=$(grep '^VERSION_MAJOR' gradle.properties | cut -d'=' -f2 | xargs || true)
+          VERSION_MINOR=$(grep '^VERSION_MINOR' gradle.properties | cut -d'=' -f2 | xargs || true)
+
+          VERSION_MAJOR=${VERSION_MAJOR:-0}
+          VERSION_MINOR=${VERSION_MINOR:-0}
 
           LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "0.0.0")
-          LAST_MAJOR=$(echo $LAST_TAG | cut -d'.' -f1)
-          LAST_MINOR=$(echo $LAST_TAG | cut -d'.' -f2)
-          LAST_PATCH=$(echo $LAST_TAG | cut -d'.' -f3)
+          LAST_TAG=${LAST_TAG#v}
+          LAST_TAG=${LAST_TAG#V}
+
+          LAST_MAJOR=$(echo "$LAST_TAG" | cut -d'.' -f1)
+          LAST_MINOR=$(echo "$LAST_TAG" | cut -d'.' -f2)
+          LAST_PATCH=$(echo "$LAST_TAG" | cut -d'.' -f3)
+
+          LAST_MAJOR=${LAST_MAJOR:-0}
+          LAST_MINOR=${LAST_MINOR:-0}
+          LAST_PATCH=${LAST_PATCH:-0}
 
           if [[ "$VERSION_MAJOR" != "$LAST_MAJOR" || "$VERSION_MINOR" != "$LAST_MINOR" ]]; then
             PATCH=1
@@ -37,7 +51,7 @@ jobs:
 
           APK_VERSION=${VERSION_MAJOR}.${VERSION_MINOR}.${PATCH}
 
-          echo "Determined version: $APK_VERSION"
+          echo "Determined version: $APK_VERSION (last tag: $LAST_TAG, patch: $PATCH)"
           echo "patch=$PATCH" >> $GITHUB_OUTPUT
           echo "versionName=$APK_VERSION" >> $GITHUB_OUTPUT
 
