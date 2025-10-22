@@ -59,12 +59,18 @@ jobs:
           echo "versionName=$APK_VERSION" >> $GITHUB_OUTPUT
           echo "patch=$PATCH" >> $GITHUB_OUTPUT
 
+      - name: Calculate Version Code
+        id: calc_version
+        run: |
+          BASE_CODE=200
+          VERSION_CODE=$((BASE_CODE + GITHUB_RUN_NUMBER))
+          echo "version_code=$VERSION_CODE" >> $GITHUB_OUTPUT
+
       - name: Version Bump
         uses: chkfung/android-version-actions@v1.2.3
         with:
           gradlePath: app/build.gradle.kts
-          versionCode: $((200 + ${{ github.run_number }}))
-
+          versionCode: ${{ steps.calc_version.outputs.version_code }}
           versionName: ${{ steps.version.outputs.versionName }}
 
       - name: Commit & push version bump
