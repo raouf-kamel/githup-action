@@ -49,7 +49,14 @@ jobs:
         run: |
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
+
+          while git rev-parse "v$APK_VERSION" >/dev/null 2>&1; do
+            PATCH=$((PATCH + 1))
+            APK_VERSION=${VERSION_MAJOR}.${VERSION_MINOR}.${PATCH}
+          done
+
           git add app/build.gradle.kts
           git commit -m "Bump version to $APK_VERSION" || echo "No changes to commit"
           git tag "v$APK_VERSION"
           git push origin HEAD --tags
+      
