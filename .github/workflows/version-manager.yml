@@ -63,7 +63,8 @@ jobs:
         uses: chkfung/android-version-actions@v1.2.3
         with:
           gradlePath: app/build.gradle.kts
-          versionCode: ${{ github.run_number }}
+          versionCode: $((200 + ${{ github.run_number }}))
+
           versionName: ${{ steps.version.outputs.versionName }}
 
       - name: Commit & push version bump
