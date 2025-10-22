@@ -38,13 +38,12 @@ jobs:
           APK_VERSION=${VERSION_MAJOR}.${VERSION_MINOR}.${PATCH}
 
           echo "Determined version: $APK_VERSION"
-
           echo "patch=$PATCH" >> $GITHUB_OUTPUT
           echo "versionName=$APK_VERSION" >> $GITHUB_OUTPUT
 
       - name: Version Bump
         uses: chkfung/android-version-actions@v1.2.3
         with:
-          gradlePath: app/build.gradle.kts
-          versionCode: ${{ steps.version.outputs.patch }}
+          gradlePath: composeApp/build.gradle.kts
+          versionCode: ${{ github.run_number }}
           versionName: ${{ steps.version.outputs.versionName }}
