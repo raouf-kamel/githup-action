@@ -18,20 +18,25 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Get Version Name
+      - name: Get Version Name and Code
         id: version
         shell: bash
         run: |
           set -euo pipefail
 
           GRADLE_PROPERTIES="gradle.properties"
-          GRADLE_FILE="app/build.gradle.kts"
+          GRADLE_FILE=versionCode: ${{"app/build.gradle.kts"
 
+          # START value for versionCode ()
+          START_CODE=200
+
+          # read declared MAJOR/MINOR from gradle.properties
           VERSION_MAJOR=$(grep '^VERSION_MAJOR' "$GRADLE_PROPERTIES" | cut -d'=' -f2 | xargs || true)
           VERSION_MINOR=$(grep '^VERSION_MINOR' "$GRADLE_PROPERTIES" | cut -d'=' -f2 | xargs || true)
           VERSION_MAJOR=${VERSION_MAJOR:-0}
           VERSION_MINOR=${VERSION_MINOR:-0}
 
+          # read current versionName from the gradle file (if present) else fallback to last tag
           CURRENT_VERSION=$(grep -Eo 'versionName\s*=\s*"[0-9]+\.[0-9]+\.[0-9]+"' "$GRADLE_FILE" | head -n1 || true)
           if [[ -n "$CURRENT_VERSION" ]]; then
             CURRENT_VERSION=$(echo "$CURRENT_VERSION" | sed -E 's/.*"([^"]+)".*/\1/')
@@ -47,6 +52,7 @@ jobs:
           CUR_MINOR=${CUR_MINOR:-0}
           CUR_PATCH=${CUR_PATCH:-0}
 
+          # determine patch: reset to 1 if MAJOR or MINOR changed, else increment
           if [[ "$VERSION_MAJOR" != "$CUR_MAJOR" || "$VERSION_MINOR" != "$CUR_MINOR" ]]; then
             PATCH=1
           else
@@ -55,15 +61,23 @@ jobs:
 
           APK_VERSION=${VERSION_MAJOR}.${VERSION_MINOR}.${PATCH}
 
-          echo "Determined version: $APK_VERSION (from current: $CURRENT_VERSION; declared: $VERSION_MAJOR.$VERSION_MINOR)"
+          # compute versionCode starting at START_CODE and increment per run
+          # GITHUB_RUN_NUMBER is provided by GitHub Actions (starts at 1)
+          RUN_NUM=${GITHUB_RUN_NUMBER:-1}
+          VERSION_CODE=$((START_CODE + RUN_NUM - 1))
+
+          echo "Computed versionName: $APK_VERSION"
+          echo "Computed versionCode: $VERSION_CODE (START_CODE=$START_CODE, run=$RUN_NUM)"
+
           echo "versionName=$APK_VERSION" >> $GITHUB_OUTPUT
+          echo "versionCode=$VERSION_CODE" >> $GITHUB_OUTPUT
           echo "patch=$PATCH" >> $GITHUB_OUTPUT
 
       - name: Version Bump
         uses: chkfung/android-version-actions@v1.2.3
         with:
           gradlePath: app/build.gradle.kts
-          versionCode: ${{ github.run_number }}
+          versionCode: ${{ steps.version.outputs.versionCode }}
           versionName: ${{ steps.version.outputs.versionName }}
 
       - name: Commit & push version bump
