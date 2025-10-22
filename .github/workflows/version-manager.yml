@@ -24,40 +24,76 @@ jobs:
         run: |
           set -euo pipefail
 
-          # اقرأ VERSION_MAJOR و VERSION_MINOR من gradle.properties
-          VERSION_MAJOR=$(grep '^VERSION_MAJOR' gradle.properties | cut -d'=' -f2 | xargs || true)
-          VERSION_MINOR=$(grep '^VERSION_MINOR' gradle.properties | cut -d'=' -f2 | xargs || true)
+          GRADLE_PROPERTIES="gradle.properties"
+          GRADLE_FILE="app/build.gradle.kts"
 
+          # read declared MAJOR/MINOR from gradle.properties
+          VERSION_MAJOR=$(grep '^VERSION_MAJOR' "$GRADLE_PROPERTIES" | cut -d'=' -f2 | xargs || true)
+          VERSION_MINOR=$(grep '^VERSION_MINOR' "$GRADLE_PROPERTIES" | cut -d'=' -f2 | xargs || true)
           VERSION_MAJOR=${VERSION_MAJOR:-0}
           VERSION_MINOR=${VERSION_MINOR:-0}
 
-          LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "0.0.0")
-          LAST_TAG=${LAST_TAG#v}
-          LAST_TAG=${LAST_TAG#V}
+          # read current versionName from the gradle file (if present)
+          CURRENT_VERSION=$(grep -Eo 'versionName\s*=\s*"[0-9]+\.[0-9]+\.[0-9]+"' "$GRADLE_FILE" | head -n1 || true)
+          if [[ -n "$CURRENT_VERSION" ]]; then
+            CURRENT_VERSION=$(echo "$CURRENT_VERSION" | sed -E 's/.*"([^"]+)".*/\1/')
+          else
+            # fallback to last tag if versionName not in file
+            CURRENT_VERSION=$(git describe --tags --abbrev=0 2>/dev/null || echo "0.0.0")
+            CURRENT_VERSION=${CURRENT_VERSION#v}
+          fi
 
-          LAST_MAJOR=$(echo "$LAST_TAG" | cut -d'.' -f1)
-          LAST_MINOR=$(echo "$LAST_TAG" | cut -d'.' -f2)
-          LAST_PATCH=$(echo "$LAST_TAG" | cut -d'.' -f3)
+          # parse current major/minor/patch
+          CUR_MAJOR=$(echo "$CURRENT_VERSION" | cut -d'.' -f1)
+          CUR_MINOR=$(echo "$CURRENT_VERSION" | cut -d'.' -f2)
+          CUR_PATCH=$(echo "$CURRENT_VERSION" | cut -d'.' -f3)
+          CUR_MAJOR=${CUR_MAJOR:-0}
+          CUR_MINOR=${CUR_MINOR:-0}
+          CUR_PATCH=${CUR_PATCH:-0}
 
-          LAST_MAJOR=${LAST_MAJOR:-0}
-          LAST_MINOR=${LAST_MINOR:-0}
-          LAST_PATCH=${LAST_PATCH:-0}
-
-          if [[ "$VERSION_MAJOR" != "$LAST_MAJOR" || "$VERSION_MINOR" != "$LAST_MINOR" ]]; then
+          # if declared MAJOR or MINOR changed, reset patch to 1; otherwise increment current patch
+          if [[ "$VERSION_MAJOR" != "$CUR_MAJOR" || "$VERSION_MINOR" != "$CUR_MINOR" ]]; then
             PATCH=1
           else
-            PATCH=$((LAST_PATCH + 1))
+            PATCH=$((CUR_PATCH + 1))
           fi
 
           APK_VERSION=${VERSION_MAJOR}.${VERSION_MINOR}.${PATCH}
 
-          echo "Determined version: $APK_VERSION (last tag: $LAST_TAG, patch: $PATCH)"
-          echo "patch=$PATCH" >> $GITHUB_OUTPUT
+          echo "Determined version: $APK_VERSION (from current: $CURRENT_VERSION; declared MAJOR.MINOR: $VERSION_MAJOR.$VERSION_MINOR)"
           echo "versionName=$APK_VERSION" >> $GITHUB_OUTPUT
+          echo "patch=$PATCH" >> $GITHUB_OUTPUT
 
       - name: Version Bump
         uses: chkfung/android-version-actions@v1.2.3
         with:
           gradlePath: app/build.gradle.kts
+          # keep versionCode increasing per run (as you requested)
           versionCode: ${{ github.run_number }}
+          # use computed MAJOR.MINOR.PATCH
           versionName: ${{ steps.version.outputs.versionName }}
+
+      - name: Commit & push version bump
+        if: always()
+        env:
+          VERSION_NAME: ${{ steps.version.outputs.versionName }}
+        run: |
+          set -euo pipefail
+
+          # configure git
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          BRANCH="${GITHUB_REF#refs/heads/}"
+
+          # add changed files produced by the version action
+          git add app/build.gradle.kts || true
+          git add gradle.properties || true
+
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "chore: bump version to ${VERSION_NAME} (code ${GITHUB_RUN_NUMBER})"
+            # push back to the same branch so next runs and PRs will see updated versionName
+            git push origin "HEAD:${BRANCH}"
+          fi
