@@ -1,0 +1,67 @@
+name: Auto Version Bump
+
+on:
+  push:
+    branches:
+      - main
+      - development
+
+jobs:
+  bump-version:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Get Version Name
+        shell: bash
+        run: |
+          VERSION_MAJOR=$(grep VERSION_MAJOR gradle.properties | cut -d'=' -f2 | xargs)
+          VERSION_MINOR=$(grep VERSION_MINOR gradle.properties | cut -d'=' -f2 | xargs)
+
+          # قراءة آخر tag منشور
+          LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "0.0.0")
+          LAST_MAJOR=$(echo $LAST_TAG | cut -d'.' -f1)
+          LAST_MINOR=$(echo $LAST_TAG | cut -d'.' -f2)
+          LAST_PATCH=$(echo $LAST_TAG | cut -d'.' -f3)
+
+          if [[ "$VERSION_MAJOR" != "$LAST_MAJOR" || "$VERSION_MINOR" != "$LAST_MINOR" ]]; then
+            PATCH=1
+          else
+            PATCH=$((LAST_PATCH + 1))
+          fi
+
+          APK_VERSION=${VERSION_MAJOR}.${VERSION_MINOR}.${PATCH}
+          echo "APK_VERSION=$APK_VERSION" >> $GITHUB_ENV
+          echo "PATCH=$PATCH" >> $GITHUB_ENV
+
+      - name: Update build.gradle.kts
+        shell: bash
+        run: |
+          GRADLE_FILE=app/build.gradle.kts
+          sed -i "s/versionCode = .*/versionCode = $PATCH/" $GRADLE_FILE
+          sed -i "s/versionName = \".*\"/versionName = \"$APK_VERSION\"/" $GRADLE_FILE
+
+      - name: Update local.properties
+        shell: bash
+        run: |
+          if ! grep -q "VERSION_PATCH" local.properties; then
+            echo "VERSION_PATCH=$PATCH" >> local.properties
+          else
+            sed -i "s/VERSION_PATCH=.*/VERSION_PATCH=$PATCH/" local.properties
+          fi
+          sed -i "s/VERSION_MAJOR=.*/VERSION_MAJOR=$VERSION_MAJOR/" local.properties
+          sed -i "s/VERSION_MINOR=.*/VERSION_MINOR=$VERSION_MINOR/" local.properties
+
+      - name: Commit and tag new version
+        shell: bash
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+          git add app/build.gradle.kts local.properties
+          git commit -m "Bump version to $APK_VERSION"
+          git tag "v$APK_VERSION"
+          git push origin HEAD --tags

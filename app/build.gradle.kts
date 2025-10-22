@@ -3,7 +3,9 @@ plugins {
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
 }
-
+val appVersionName =
+    project.property("VERSION_MAJOR").toString() + "." + project.property("VERSION_MINOR")
+        .toString()
 android {
     namespace = "com.raouf_developer.githup_action"
     compileSdk = 36
@@ -13,7 +15,7 @@ android {
         minSdk = 24
         targetSdk = 36
         versionCode = 1
-        versionName = "1.0"
+        versionName = appVersionName
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
