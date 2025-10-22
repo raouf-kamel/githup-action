@@ -14,8 +14,8 @@ android {
         applicationId = "com.raouf_developer.githup_action"
         minSdk = 24
         targetSdk = 36
-        versionCode = 24
-        versionName = "1.3.2"
+        versionCode = 25
+        versionName = "1.3.3"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
