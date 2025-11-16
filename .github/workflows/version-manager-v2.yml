@@ -3,6 +3,7 @@ name: Auto Version Bump
 on:
   push:
     branches:
+      - main
       - feature/new-feature
       - development
 
