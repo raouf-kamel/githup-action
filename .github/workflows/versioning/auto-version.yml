@@ -1,0 +1,37 @@
+name: Auto Version
+
+on:
+  workflow_call:
+
+jobs:
+  version:
+    runs-on: ubuntu-latest
+    outputs:
+      VERSION_NAME: ${{ steps.ver.outputs.VERSION_NAME }}
+      VERSION_CODE: ${{ steps.ver.outputs.VERSION_CODE }}
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - id: ver
+        run: |
+          CURRENT_TAG=$(git describe --tags --abbrev=0 || echo "0.0.0")
+          CURRENT_TAG=${CURRENT_TAG#v}
+          MAJOR=$(echo $CURRENT_TAG | cut -d. -f1)
+          MINOR=$(echo $CURRENT_TAG | cut -d. -f2)
+          PATCH=$(echo $CURRENT_TAG | cut -d. -f3)
+          PATCH=$((PATCH + 1))
+
+          VERSION_NAME="$MAJOR.$MINOR.$PATCH"
+          BRANCH="${GITHUB_REF#refs/heads/}"
+
+          if [[ "$BRANCH" == "dev" ]]; then
+            VERSION_NAME="${VERSION_NAME}-dev.${GITHUB_RUN_NUMBER}"
+          fi
+
+          VERSION_CODE=$((200 + GITHUB_RUN_NUMBER))
+
+          echo "VERSION_NAME=$VERSION_NAME" >> $GITHUB_OUTPUT
+          echo "VERSION_CODE=$VERSION_CODE" >> $GITHUB_OUTPUT

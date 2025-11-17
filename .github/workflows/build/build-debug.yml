@@ -1,0 +1,38 @@
+name: Build Release
+
+on:
+  workflow_call:
+    inputs:
+      type:
+        required: true
+        type: string  # apk or aab
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    outputs:
+      ARTIFACT_PATH: ${{ steps.output.outputs.path }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+          cache: gradle
+
+      - run: chmod +x gradlew
+
+      - name: Build Artifact
+        run: |
+          if [[ "${{ inputs.type }}" == "apk" ]]; then
+              ./gradlew :app:assembleRelease
+              echo "app/build/outputs/apk/release" > artifact.path
+          else
+              ./gradlew :app:bundleRelease
+              echo "app/build/outputs/bundle/release" > artifact.path
+          fi
+
+      - id: output
+        run: echo "path=$(cat artifact.path)" >> $GITHUB_OUTPUT

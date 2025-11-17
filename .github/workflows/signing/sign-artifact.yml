@@ -1,0 +1,24 @@
+name: Sign Artifact
+
+on:
+  workflow_call:
+    inputs:
+      inputPath:
+        required: true
+        type: string
+
+jobs:
+  sign:
+    runs-on: ubuntu-latest
+    outputs:
+      SIGNED_PATH: ${{ steps.sign.outputs.signedReleaseFile }}
+
+    steps:
+      - uses: r0adkll/sign-android-release@v1
+        id: sign
+        with:
+          releaseDirectory: ${{ inputs.inputPath }}
+          signingKeyBase64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          keyStorePassword: ${{ secrets.KEYSTORE_PASSWORD }}
+          alias: ${{ secrets.ANDROID_KEY_ALIAS }}
+          keyPassword: ${{ secrets.ANDROID_KEY_ALIAS_PASSWORD }}

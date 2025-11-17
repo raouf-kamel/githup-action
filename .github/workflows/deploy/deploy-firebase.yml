@@ -1,0 +1,19 @@
+name: Deploy Firebase
+
+on:
+  workflow_call:
+    inputs:
+      file:
+        required: true
+        type: string
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: wzieba/Firebase-Distribution-Github-Action@v1
+        with:
+          appId: ${{ secrets.FIREBASE_APP_ID }}
+          serviceCredentialsFileContent: ${{ secrets.CREDENTIAL_FILE_CONTENT }}
+          file: ${{ inputs.file }}
+          groups: testers-develop

@@ -1,0 +1,27 @@
+name: Dev Pipeline
+
+on:
+  push:
+    branches: [ dev ]
+
+jobs:
+  version:
+    uses: ./.github/workflows/versioning/auto-version.yml
+
+  build:
+    uses: ./.github/workflows/build/build-release.yml
+    needs: version
+    with:
+      type: apk
+
+  sign:
+    uses: ./.github/workflows/signing/sign-artifact.yml
+    needs: build
+    with:
+      inputPath: ${{ needs.build.outputs.ARTIFACT_PATH }}
+
+  deploy:
+    uses: ./.github/workflows/deploy/deploy-firebase.yml
+    needs: sign
+    with:
+      file: ${{ needs.sign.outputs.SIGNED_PATH }}
